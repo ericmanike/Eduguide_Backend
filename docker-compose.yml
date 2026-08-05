@@ -1,0 +1,33 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-eduguide}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-eduguide}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-eduguide_password}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_FLYWAY_ENABLED: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eduguide}
+      POSTGRES_USER: ${POSTGRES_USER:-eduguide}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eduguide_password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eduguide} -d ${POSTGRES_DB:-eduguide}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:

@@ -13,9 +13,9 @@ public class JwtService {
     // We keep this as a field because we will need it later to verify tokens
     private final SecretKey jwtSecretKey = Jwts.SIG.HS256.key().build();
 
-    public String generateToken(String username) {
+    public String generateToken(String email) {
         return Jwts.builder()
-                .subject(username) // "setSubject" is now just "subject"
+                .subject(email) // "setSubject" is now just "subject"
                 .issuedAt(new Date()) // "setIssuedAt" is now "issuedAt"
                 .expiration(new Date(System.currentTimeMillis() + 86400000)) // 24 hours
                 .signWith(jwtSecretKey) // We sign with the key directly
@@ -26,7 +26,7 @@ public class JwtService {
 
     // Add these to your existing JwtService.java class:
 
-    public String extractUsername(String token) {
+    public String extractEmail(String token) {
         return Jwts.parser()
                 .verifyWith(jwtSecretKey) // Verifies the signature using our secret key
                 .build()
