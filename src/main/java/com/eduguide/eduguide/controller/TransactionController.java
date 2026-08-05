@@ -2,8 +2,7 @@ package com.eduguide.eduguide.controller;
 
 import com.eduguide.eduguide.model.Transaction;
 import com.eduguide.eduguide.model.TransactionRequest;
-import com.eduguide.eduguide.repository.TransactionRepository;
-import com.eduguide.eduguide.repository.UserRepository;
+import com.eduguide.eduguide.service.TransactionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,29 +13,27 @@ import java.util.UUID;
 @RequestMapping("/api/transactions")
 public class TransactionController {
 
-    private final TransactionRepository transactionRepository;
-    private final UserRepository userRepository;
+    private final TransactionService transactionService;
 
-    public TransactionController(TransactionRepository transactionRepository, UserRepository userRepository) {
-        this.transactionRepository = transactionRepository;
-        this.userRepository = userRepository;
+    public TransactionController(TransactionService transactionService) {
+        this.transactionService = transactionService;
     }
 
     @GetMapping
     public List<Transaction> getAllTransactions() {
-        return transactionRepository.findAll();
+        return transactionService.getAllTransactions();
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Transaction> getTransaction(@PathVariable UUID id) {
-        return transactionRepository.findById(id)
+        return transactionService.getTransactionById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/user/{userId}")
     public List<Transaction> getTransactionsByUser(@PathVariable UUID userId) {
-        return transactionRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        return transactionService.getTransactionsByUserId(userId);
     }
 
     @PostMapping
@@ -45,25 +42,16 @@ public class TransactionController {
             return ResponseEntity.badRequest().body("Error: userId, amount, and type are required!");
         }
 
-        var userOptional = userRepository.findById(request.getUserId());
-        if (userOptional.isEmpty()) {
-            return ResponseEntity.badRequest().body("Error: User not found!");
-        }
-
-        Transaction transaction = new Transaction();
-        transaction.setUser(userOptional.get());
-        transaction.setAmount(request.getAmount());
-        transaction.setType(request.getType());
-        transaction.setDescription(request.getDescription());
-        return ResponseEntity.ok(transactionRepository.save(transaction));
+        return transactionService.createTransaction(request)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.badRequest().body("Error: User not found!"));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTransaction(@PathVariable UUID id) {
-        if (!transactionRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
+        if (transactionService.deleteTransaction(id)) {
+            return ResponseEntity.noContent().build();
         }
-        transactionRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.notFound().build();
     }
 }

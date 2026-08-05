@@ -2,9 +2,7 @@ package com.eduguide.eduguide.controller;
 
 import com.eduguide.eduguide.model.UserSkill;
 import com.eduguide.eduguide.model.UserSkillRequest;
-import com.eduguide.eduguide.repository.SkillRepository;
-import com.eduguide.eduguide.repository.UserRepository;
-import com.eduguide.eduguide.repository.UserSkillRepository;
+import com.eduguide.eduguide.service.UserSkillService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,28 +13,20 @@ import java.util.UUID;
 @RequestMapping("/api/user-skills")
 public class UserSkillController {
 
-    private final UserSkillRepository userSkillRepository;
-    private final UserRepository userRepository;
-    private final SkillRepository skillRepository;
+    private final UserSkillService userSkillService;
 
-    public UserSkillController(
-            UserSkillRepository userSkillRepository,
-            UserRepository userRepository,
-            SkillRepository skillRepository
-    ) {
-        this.userSkillRepository = userSkillRepository;
-        this.userRepository = userRepository;
-        this.skillRepository = skillRepository;
+    public UserSkillController(UserSkillService userSkillService) {
+        this.userSkillService = userSkillService;
     }
 
     @GetMapping
     public List<UserSkill> getAllUserSkills() {
-        return userSkillRepository.findAll();
+        return userSkillService.getAllUserSkills();
     }
 
     @GetMapping("/user/{userId}")
     public List<UserSkill> getUserSkills(@PathVariable UUID userId) {
-        return userSkillRepository.findByUserId(userId);
+        return userSkillService.getUserSkillsByUserId(userId);
     }
 
     @PostMapping
@@ -48,17 +38,9 @@ public class UserSkillController {
             return ResponseEntity.badRequest().body("Error: masteryLevel must be between 1 and 10!");
         }
 
-        var userOptional = userRepository.findById(request.getUserId());
-        var skillOptional = skillRepository.findById(request.getSkillId());
-        if (userOptional.isEmpty() || skillOptional.isEmpty()) {
-            return ResponseEntity.badRequest().body("Error: User or skill not found!");
-        }
-
-        UserSkill userSkill = new UserSkill();
-        userSkill.setUser(userOptional.get());
-        userSkill.setSkill(skillOptional.get());
-        userSkill.setMasteryLevel(request.getMasteryLevel());
-        return ResponseEntity.ok(userSkillRepository.save(userSkill));
+        return userSkillService.createUserSkill(request)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.badRequest().body("Error: User or skill not found!"));
     }
 
     @PutMapping("/{id}")
@@ -67,21 +49,17 @@ public class UserSkillController {
             return ResponseEntity.badRequest().body("Error: masteryLevel must be between 1 and 10!");
         }
 
-        return userSkillRepository.findById(id)
-                .map(userSkill -> {
-                    userSkill.setMasteryLevel(request.getMasteryLevel());
-                    return ResponseEntity.ok(userSkillRepository.save(userSkill));
-                })
+        return userSkillService.updateUserSkill(id, request)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUserSkill(@PathVariable UUID id) {
-        if (!userSkillRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
+        if (userSkillService.deleteUserSkill(id)) {
+            return ResponseEntity.noContent().build();
         }
-        userSkillRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.notFound().build();
     }
 
     private boolean validMastery(Integer value) {

@@ -1,15 +1,11 @@
 package com.eduguide.eduguide.controller;
 
-import com.eduguide.eduguide.model.ProgressStatus;
 import com.eduguide.eduguide.model.UserModuleProgress;
 import com.eduguide.eduguide.model.UserModuleProgressRequest;
-import com.eduguide.eduguide.repository.ModuleRepository;
-import com.eduguide.eduguide.repository.UserModuleProgressRepository;
-import com.eduguide.eduguide.repository.UserRepository;
+import com.eduguide.eduguide.service.UserModuleProgressService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,28 +13,20 @@ import java.util.UUID;
 @RequestMapping("/api/user-module-progress")
 public class UserModuleProgressController {
 
-    private final UserModuleProgressRepository userModuleProgressRepository;
-    private final UserRepository userRepository;
-    private final ModuleRepository moduleRepository;
+    private final UserModuleProgressService userModuleProgressService;
 
-    public UserModuleProgressController(
-            UserModuleProgressRepository userModuleProgressRepository,
-            UserRepository userRepository,
-            ModuleRepository moduleRepository
-    ) {
-        this.userModuleProgressRepository = userModuleProgressRepository;
-        this.userRepository = userRepository;
-        this.moduleRepository = moduleRepository;
+    public UserModuleProgressController(UserModuleProgressService userModuleProgressService) {
+        this.userModuleProgressService = userModuleProgressService;
     }
 
     @GetMapping
     public List<UserModuleProgress> getAllProgress() {
-        return userModuleProgressRepository.findAll();
+        return userModuleProgressService.getAllProgress();
     }
 
     @GetMapping("/user/{userId}")
     public List<UserModuleProgress> getProgressByUser(@PathVariable UUID userId) {
-        return userModuleProgressRepository.findByUserId(userId);
+        return userModuleProgressService.getProgressByUserId(userId);
     }
 
     @PostMapping
@@ -47,46 +35,23 @@ public class UserModuleProgressController {
             return ResponseEntity.badRequest().body("Error: userId and moduleId are required!");
         }
 
-        var userOptional = userRepository.findById(request.getUserId());
-        var moduleOptional = moduleRepository.findById(request.getModuleId());
-        if (userOptional.isEmpty() || moduleOptional.isEmpty()) {
-            return ResponseEntity.badRequest().body("Error: User or module not found!");
-        }
-
-        UserModuleProgress progress = new UserModuleProgress();
-        progress.setUser(userOptional.get());
-        progress.setModule(moduleOptional.get());
-        progress.setStatus(request.getStatus() == null ? ProgressStatus.NOT_STARTED : request.getStatus());
-        progress.setCompletedAt(completedAtFor(progress.getStatus(), request.getCompletedAt()));
-        return ResponseEntity.ok(userModuleProgressRepository.save(progress));
+        return userModuleProgressService.createProgress(request)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.badRequest().body("Error: User or module not found!"));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updateProgress(@PathVariable UUID id, @RequestBody UserModuleProgressRequest request) {
-        return userModuleProgressRepository.findById(id)
-                .map(progress -> {
-                    if (request.getStatus() != null) {
-                        progress.setStatus(request.getStatus());
-                    }
-                    progress.setCompletedAt(completedAtFor(progress.getStatus(), request.getCompletedAt()));
-                    return ResponseEntity.ok(userModuleProgressRepository.save(progress));
-                })
+        return userModuleProgressService.updateProgress(id, request)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProgress(@PathVariable UUID id) {
-        if (!userModuleProgressRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
+        if (userModuleProgressService.deleteProgress(id)) {
+            return ResponseEntity.noContent().build();
         }
-        userModuleProgressRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    private OffsetDateTime completedAtFor(ProgressStatus status, OffsetDateTime requestedCompletedAt) {
-        if (status == ProgressStatus.COMPLETED) {
-            return requestedCompletedAt == null ? OffsetDateTime.now() : requestedCompletedAt;
-        }
-        return requestedCompletedAt;
+        return ResponseEntity.notFound().build();
     }
 }

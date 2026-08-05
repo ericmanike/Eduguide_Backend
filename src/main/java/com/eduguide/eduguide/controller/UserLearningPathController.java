@@ -2,9 +2,7 @@ package com.eduguide.eduguide.controller;
 
 import com.eduguide.eduguide.model.UserLearningPath;
 import com.eduguide.eduguide.model.UserLearningPathRequest;
-import com.eduguide.eduguide.repository.LearningPathRepository;
-import com.eduguide.eduguide.repository.UserLearningPathRepository;
-import com.eduguide.eduguide.repository.UserRepository;
+import com.eduguide.eduguide.service.UserLearningPathService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,33 +13,25 @@ import java.util.UUID;
 @RequestMapping("/api/user-learning-paths")
 public class UserLearningPathController {
 
-    private final UserLearningPathRepository userLearningPathRepository;
-    private final UserRepository userRepository;
-    private final LearningPathRepository learningPathRepository;
+    private final UserLearningPathService userLearningPathService;
 
-    public UserLearningPathController(
-            UserLearningPathRepository userLearningPathRepository,
-            UserRepository userRepository,
-            LearningPathRepository learningPathRepository
-    ) {
-        this.userLearningPathRepository = userLearningPathRepository;
-        this.userRepository = userRepository;
-        this.learningPathRepository = learningPathRepository;
+    public UserLearningPathController(UserLearningPathService userLearningPathService) {
+        this.userLearningPathService = userLearningPathService;
     }
 
     @GetMapping
     public List<UserLearningPath> getAllUserLearningPaths() {
-        return userLearningPathRepository.findAll();
+        return userLearningPathService.getAllUserLearningPaths();
     }
 
     @GetMapping("/user/{userId}")
     public List<UserLearningPath> getUserLearningPaths(@PathVariable UUID userId) {
-        return userLearningPathRepository.findByUserId(userId);
+        return userLearningPathService.getUserLearningPathsByUserId(userId);
     }
 
     @GetMapping("/user/{userId}/active")
     public List<UserLearningPath> getActiveUserLearningPaths(@PathVariable UUID userId) {
-        return userLearningPathRepository.findByUserIdAndActiveTrue(userId);
+        return userLearningPathService.getActiveUserLearningPathsByUserId(userId);
     }
 
     @PostMapping
@@ -53,19 +43,9 @@ public class UserLearningPathController {
             return ResponseEntity.badRequest().body("Error: matchScore and progressPercentage must be between 0 and 100!");
         }
 
-        var userOptional = userRepository.findById(request.getUserId());
-        var pathOptional = learningPathRepository.findById(request.getPathId());
-        if (userOptional.isEmpty() || pathOptional.isEmpty()) {
-            return ResponseEntity.badRequest().body("Error: User or learning path not found!");
-        }
-
-        UserLearningPath userLearningPath = new UserLearningPath();
-        userLearningPath.setUser(userOptional.get());
-        userLearningPath.setPath(pathOptional.get());
-        userLearningPath.setActive(Boolean.TRUE.equals(request.getActive()));
-        userLearningPath.setMatchScore(request.getMatchScore());
-        userLearningPath.setProgressPercentage(request.getProgressPercentage() == null ? 0 : request.getProgressPercentage());
-        return ResponseEntity.ok(userLearningPathRepository.save(userLearningPath));
+        return userLearningPathService.createUserLearningPath(request)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.badRequest().body("Error: User or learning path not found!"));
     }
 
     @PutMapping("/{id}")
@@ -74,29 +54,17 @@ public class UserLearningPathController {
             return ResponseEntity.badRequest().body("Error: matchScore and progressPercentage must be between 0 and 100!");
         }
 
-        return userLearningPathRepository.findById(id)
-                .map(userLearningPath -> {
-                    if (request.getActive() != null) {
-                        userLearningPath.setActive(request.getActive());
-                    }
-                    if (request.getMatchScore() != null) {
-                        userLearningPath.setMatchScore(request.getMatchScore());
-                    }
-                    if (request.getProgressPercentage() != null) {
-                        userLearningPath.setProgressPercentage(request.getProgressPercentage());
-                    }
-                    return ResponseEntity.ok(userLearningPathRepository.save(userLearningPath));
-                })
+        return userLearningPathService.updateUserLearningPath(id, request)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUserLearningPath(@PathVariable UUID id) {
-        if (!userLearningPathRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
+        if (userLearningPathService.deleteUserLearningPath(id)) {
+            return ResponseEntity.noContent().build();
         }
-        userLearningPathRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.notFound().build();
     }
 
     private boolean validPercentage(Integer value) {
