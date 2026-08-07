@@ -3,6 +3,8 @@ package com.eduguide.eduguide.controller;
 import com.eduguide.eduguide.model.User;
 import com.eduguide.eduguide.model.RegisterRequest;
 import com.eduguide.eduguide.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -30,11 +32,13 @@ public class UserController {
     }
 
     @GetMapping
+    @SecurityRequirement(name = "Bearer Authentication")
     public List<User> getAllUsers() {
         return userService.getAllUsers();
     }
 
     @GetMapping("/{id}")
+    @SecurityRequirement(name = "Bearer Authentication")
     public ResponseEntity<User> getUserById(@PathVariable UUID id) {
         return userService.getUserById(id)
                 .map(ResponseEntity::ok)
@@ -43,6 +47,7 @@ public class UserController {
 
     // New Registration Route
     @PostMapping("/register")
+    @Operation(summary = "Register a new user", description = "Public endpoint - no authentication required")
     public ResponseEntity<String> registerUser(@RequestBody RegisterRequest request) {
         if (request.getEmail() == null || request.getEmail().isBlank()) {
             return ResponseEntity.badRequest().body("Error: Email is required!");
@@ -67,6 +72,7 @@ public class UserController {
 
 
     @PostMapping("/login")
+    @Operation(summary = "Login user", description = "Public endpoint - no authentication required")
     public ResponseEntity<?> loginUser(@RequestBody LoginRequest request) {
         Optional<User> userOptional = userService.getUserByEmail(request.getEmail());
 
@@ -88,6 +94,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @SecurityRequirement(name = "Bearer Authentication")
     public ResponseEntity<?> updateUser(@PathVariable UUID id, @RequestBody RegisterRequest request) {
         return userService.updateUser(id, request)
                 .map(user -> ResponseEntity.ok("User updated successfully!"))
@@ -95,6 +102,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @SecurityRequirement(name = "Bearer Authentication")
     public ResponseEntity<?> deleteUser(@PathVariable UUID id) {
         if (userService.deleteUser(id)) {
             return ResponseEntity.ok("User deleted successfully!");
