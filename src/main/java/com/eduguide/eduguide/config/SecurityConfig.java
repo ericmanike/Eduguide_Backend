@@ -2,6 +2,7 @@ package com.eduguide.eduguide.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -12,6 +13,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -28,7 +30,9 @@ public class SecurityConfig {
                          // Public endpoints
                          .requestMatchers("/api/users/register", "/api/users/login").permitAll()
                          .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                         // Protected endpoints
+                         // Admin-only endpoints
+                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                         // Protected endpoints (authenticated users)
                          .requestMatchers("/api/**").authenticated()
                          .anyRequest().authenticated()
                 )

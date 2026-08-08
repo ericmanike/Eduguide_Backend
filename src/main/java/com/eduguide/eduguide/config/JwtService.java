@@ -1,24 +1,49 @@
 package com.eduguide.eduguide.config;
 
+import com.eduguide.eduguide.model.User;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class JwtService {
 
-    // 1. We generate a secure key specifically for the HS256 algorithm
-    // We keep this as a field because we will need it later to verify tokens
-    private final SecretKey jwtSecretKey = Jwts.SIG.HS256.key().build();
+    @Value("${jwt.secret}")
+    private String secretString;
 
-    public String generateToken(String email) {
+    @Value("${jwt.expiration}")
+    private long jwtExpiration;
+
+    private SecretKey jwtSecretKey;
+
+    @PostConstruct
+    public void init() {
+        // Convert secret string to SecretKey (minimum 32 characters for HS256)
+        byte[] keyBytes = secretString.getBytes(StandardCharsets.UTF_8);
+        this.jwtSecretKey = Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    public String generateToken(User user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("id", user.getId().toString());
+        claims.put("email", user.getEmail());
+        claims.put("role", user.getRole().name());
+        claims.put("name", user.getName());
+
         return Jwts.builder()
-                .subject(email) // "setSubject" is now just "subject"
-                .issuedAt(new Date()) // "setIssuedAt" is now "issuedAt"
-                .expiration(new Date(System.currentTimeMillis() + 86400000)) // 24 hours
-                .signWith(jwtSecretKey) // We sign with the key directly
+                .claims(claims)
+                .subject(user.getEmail())
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .signWith(jwtSecretKey)
                 .compact();
     }
 

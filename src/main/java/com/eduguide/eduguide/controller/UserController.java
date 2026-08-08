@@ -82,7 +82,7 @@ public class UserController {
 
         User user = userOptional.get();
 
-        String generatedToken = jwtService.generateToken(user.getEmail());
+        String generatedToken = jwtService.generateToken(user);
 
         return ResponseEntity.ok(new LoginResponse(
                 generatedToken,
