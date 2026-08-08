@@ -67,6 +67,7 @@ public class SecurityConfig {
         // Allow all headers
         configuration.setAllowedHeaders(Arrays.asList("*"));
 
+
         // Allow credentials (cookies, authorization headers)
         configuration.setAllowCredentials(true);
 
