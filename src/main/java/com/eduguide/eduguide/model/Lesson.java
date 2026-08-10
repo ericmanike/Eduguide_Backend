@@ -1,5 +1,6 @@
 package com.eduguide.eduguide.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -17,6 +18,7 @@ public class Lesson {
 
     @ManyToOne
     @JoinColumn(name = "module_id", nullable = false)
+    @JsonIgnoreProperties("lessons")
     private Module module;
 
     @Column(nullable = false)
