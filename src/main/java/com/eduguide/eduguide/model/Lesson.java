@@ -4,36 +4,42 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "modules")
+@Table(name = "lessons")
 @Data
-public class Module {
+public class Lesson {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @ManyToOne
+    @JoinColumn(name = "module_id", nullable = false)
+    private Module module;
+
     @Column(nullable = false)
     private String title;
 
-    @Column(nullable = false, length = 100)
-    private String topic;
+    @Column(name = "video_url", columnDefinition = "TEXT", nullable = false)
+    private String videoUrl;
+
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes;
+
+    @Column(name = "sequence_order", nullable = false)
+    private Integer sequenceOrder;
 
     @Column(columnDefinition = "TEXT")
-    private String description;
+    private String summary;
 
-    @Column(name = "duration_minutes", nullable = false)
-    private Integer durationMinutes;
+    @Column(name = "resources_url", columnDefinition = "TEXT")
+    private String resourcesUrl;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
     @Column(name = "updated_at", insertable = false, updatable = false)
     private OffsetDateTime updatedAt;
-
-    @OneToMany(mappedBy = "module", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Lesson> lessons;
 }
