@@ -64,4 +64,14 @@ public class UserLessonProgressController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    @GetMapping("/user/{userId}/path/{pathId}/stats")
+    public ResponseEntity<Map<String, Object>> getPathCompletionStats(@PathVariable UUID userId, @PathVariable UUID pathId) {
+        try {
+            Map<String, Object> stats = progressService.getPathCompletionStats(userId, pathId);
+            return ResponseEntity.ok(stats);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
 }

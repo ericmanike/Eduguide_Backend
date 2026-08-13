@@ -1,8 +1,10 @@
 package com.eduguide.eduguide.service;
 
 import com.eduguide.eduguide.model.*;
+import com.eduguide.eduguide.repository.LearningPathRepository;
 import com.eduguide.eduguide.repository.LessonRepository;
 import com.eduguide.eduguide.repository.ModuleRepository;
+import com.eduguide.eduguide.repository.PathModuleRepository;
 import com.eduguide.eduguide.repository.UserLessonProgressRepository;
 import com.eduguide.eduguide.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -21,15 +23,21 @@ public class UserLessonProgressService {
     private final UserRepository userRepository;
     private final LessonRepository lessonRepository;
     private final ModuleRepository moduleRepository;
+    private final PathModuleRepository pathModuleRepository;
+    private final LearningPathRepository learningPathRepository;
 
     public UserLessonProgressService(UserLessonProgressRepository progressRepository,
                                      UserRepository userRepository,
                                      LessonRepository lessonRepository,
-                                     ModuleRepository moduleRepository) {
+                                     ModuleRepository moduleRepository,
+                                     PathModuleRepository pathModuleRepository,
+                                     LearningPathRepository learningPathRepository) {
         this.progressRepository = progressRepository;
         this.userRepository = userRepository;
         this.lessonRepository = lessonRepository;
         this.moduleRepository = moduleRepository;
+        this.pathModuleRepository = pathModuleRepository;
+        this.learningPathRepository = learningPathRepository;
     }
 
     @Transactional
@@ -84,6 +92,60 @@ public class UserLessonProgressService {
         Map<String, Object> stats = new HashMap<>();
         stats.put("moduleId", moduleId);
         stats.put("moduleTitle", module.getTitle());
+        stats.put("totalLessons", totalLessons);
+        stats.put("completedLessons", completedLessons);
+        stats.put("inProgressLessons", inProgressLessons);
+        stats.put("notStartedLessons", totalLessons - completedLessons - inProgressLessons);
+        stats.put("completionPercentage", Math.round(completionPercentage * 100.0) / 100.0);
+        stats.put("isCompleted", completedLessons == totalLessons && totalLessons > 0);
+
+        return stats;
+    }
+
+    public Map<String, Object> getPathCompletionStats(UUID userId, UUID pathId) {
+        LearningPath path = learningPathRepository.findById(pathId)
+                .orElseThrow(() -> new RuntimeException("Learning path not found"));
+
+        List<PathModule> pathModules = pathModuleRepository.findByPathIdOrderBySequenceOrderAsc(pathId);
+
+        long totalModules = pathModules.size();
+        long completedModules = 0;
+        long inProgressModules = 0;
+        long totalLessons = 0;
+        long completedLessons = 0;
+        long inProgressLessons = 0;
+
+        for (PathModule pathModule : pathModules) {
+            UUID moduleId = pathModule.getModule().getId();
+
+            long moduleTotalLessons = lessonRepository.findByModuleIdOrderBySequenceOrderAsc(moduleId).size();
+            long moduleCompletedLessons = progressRepository.countByUserIdAndModuleIdAndStatus(
+                    userId, moduleId, ProgressStatus.COMPLETED);
+            long moduleInProgressLessons = progressRepository.countByUserIdAndModuleIdAndStatus(
+                    userId, moduleId, ProgressStatus.IN_PROGRESS);
+
+            totalLessons += moduleTotalLessons;
+            completedLessons += moduleCompletedLessons;
+            inProgressLessons += moduleInProgressLessons;
+
+            if (moduleTotalLessons > 0 && moduleCompletedLessons == moduleTotalLessons) {
+                completedModules++;
+            } else if (moduleCompletedLessons > 0 || moduleInProgressLessons > 0) {
+                inProgressModules++;
+            }
+        }
+
+        double completionPercentage = totalLessons > 0
+                ? (completedLessons * 100.0) / totalLessons
+                : 0.0;
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("pathId", pathId);
+        stats.put("pathTitle", path.getTitle());
+        stats.put("totalModules", totalModules);
+        stats.put("completedModules", completedModules);
+        stats.put("inProgressModules", inProgressModules);
+        stats.put("notStartedModules", totalModules - completedModules - inProgressModules);
         stats.put("totalLessons", totalLessons);
         stats.put("completedLessons", completedLessons);
         stats.put("inProgressLessons", inProgressLessons);
